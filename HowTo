@@ -100,8 +100,6 @@ handler = http.server.SimpleHTTPRequestHandler
 
 # Указываем, что сервер мы хотим запустить на порте 8080. 
 with socketserver.TCPServer(("", 8080), handler) as httpd:
-
-# Запуск сервера.
    httpd.serve_forever()
 
 2.3
