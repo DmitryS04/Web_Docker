@@ -1,0 +1,158 @@
+Задача: 
+Использовать Docker для запуска простейшего веб-приложения.
+В качестве приложения нужно использовать "Hello World" на языке Python.
+
+Этап 1.
+На базе установленного дистрибутива AstaLinux "Орел" создаем docker-образ с данной ОС.
+
+1.1 
+Устанавливаем debootstrap:
+sudo apt install debootstrap
+
+1.2 
+Создаем скрипт makeastra:
+#!/bin/bash
+
+debootstrap \
+    --include ncurses-term,locales,nano,gawk,lsb-release,acl,perl-modules-5.28 \
+    --components=main,contrib,non-free 1.7_x86-64 \
+    $1 \
+    http://dl.astralinux.ru/astra/stable/1.7_x86-64/repository-main
+
+1.3 
+Делаем скрипт makeastra исполняемым:
+sudo chmod +x makeastra
+
+1.4 
+Создаем каталог для содержимого образа:
+sudo mkdir /var/tmp/dockerastra
+
+1.5
+Запускаем скрипт:
+sudo ./makeastra /var/tmp/dockerastra
+
+1.6 
+Копируем список репозиториев ОС в будущий образ:
+sudo cp /etc/apt/sources.list /var/tmp/dockerastra/etc/apt/sources.list
+
+1.7 
+Заходим в будущую систему:
+sudo chroot /var/tmp/dockerastra
+
+1.8 
+Удаляем скачанные .deb-файлы:
+rm -rf /var/cache/apt/archives/*.deb
+
+1.9 
+Указываем и устанавливаем LOCALE:
+echo "ru_RU.UTF-8 UTF-8" >> /etc/locale.gen
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+
+locale-gen
+
+update-locale ru_RU.UTF-8
+
+1.10
+Выходим из chroot-окружения:
+exit
+
+1.11
+Создаем скрипт dockerimport:
+
+#!/bin/bash
+
+tar -C $1 -cpf - . | \
+docker import - $2 \
+    --change "ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    --change 'CMD ["/bin/bash"]' \
+    --change "ENV LANG=ru_RU.UTF-8"
+
+1.12
+Делаем скрипт dockerimport исполняемым:
+sudo chmod +x dockerimport
+
+1.13
+Импортируем каталог /var/tmp/dockerastra в виде Docker-образа с именем astra и TAG orel
+sudo ./dockerimport /var/tmp/dockerastra astra:orel
+
+1.14
+Проверяем наличие Docker-образа:
+docker image list
+
+
+Этап 2.
+На базе docker-образа astra:orel создаем docker-образ с web-приложением.
+
+2.1 Создаем каталог astra-web
+mkdir astra-web
+cd astra-web
+
+2.2
+Создаем python-скрипт server.py простейшего веб-сервера:
+#!/usr/bin/env python3
+
+# Импорт системных библиотек python.
+import http.server
+import socketserver
+
+# Эта переменная нужна для обработки запросов клиента к серверу.
+handler = http.server.SimpleHTTPRequestHandler
+
+# Указываем, что сервер мы хотим запустить на порте 8080. 
+with socketserver.TCPServer(("", 8080), handler) as httpd:
+
+# Запуск сервера.
+   httpd.serve_forever()
+
+2.3
+Создаем файл index.html:
+Hello world!!!
+
+2.4
+Создаем Dockerfile для образа с приложением:
+FROM asta:orel
+
+ADD server.py /server/
+ADD index.html /server/
+
+WORK /server/
+
+RUN apt install -qy python3
+
+EXPOSE 8080
+CMD ["python3", "./server.py"]
+
+2.5
+Собираем docker-образ
+docker build . -t astra:web
+
+2.6
+Проверяем наличие Docker-образа:
+docker image list
+
+2.7
+Запускаем контейнер:
+docker run -p 80:8080 --rm astra:web
+
+2.8
+Проверяем работу контейнера:
+docker ps
+
+2.9
+Проверяем работу веб-приложения внутри контейнера:
+curl http://localhost
+
+Должно вывестись в терминал - "Hello world!!!".
+
+
+
+
+
+
+
+
+
+
+
+
+
