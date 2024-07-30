@@ -132,7 +132,7 @@ docker image list
 
 2.7
 Запускаем контейнер:
-docker run -p 80:8080 --rm astra:web
+docker run -p 80:8080 astra:web
 
 2.8
 Проверяем работу контейнера:
